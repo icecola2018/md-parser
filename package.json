@@ -1,0 +1,23 @@
+{
+  "name": "md-parser",
+  "version": "0.2.0",
+  "description": "A simple parser for markdown.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icecola2018/md-parser.git"
+  },
+  "keywords": [
+    "markdown",
+    "parser"
+  ],
+  "author": "icecola2018",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/icecola2018/md-parser/issues"
+  },
+  "homepage": "https://github.com/icecola2018/md-parser#readme"
+}
