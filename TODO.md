@@ -2,49 +2,49 @@
 ## basic
 - [ ] All features
 - [ ] Tests for modules
-- [ ] Bench
+- [ ] Manual
 
 ## platform
 - [ ] node.js/npm
-- [ ] browsers
+- [ ] browsers native js
 - [ ] vue.js plugin
+- [ ] vscode extension
 
 ## further
+- [ ] cli tool
 - [ ] markdown editor
-- [ ] ^^realtime preview
-- [ ] ^^code highlight
 
 ## features
-### components
+### output components
 - [ ] to visual dom tree
 - [ ] to html
 
 ### leaf blocks
-- [ ] ATX headings
-- [ ] Setext headings
+- [ ] ATX headings (`#`)
+- [ ] Setext headings (`=`)
 - [ ] Paragraphs
 - [ ] Blank lines
-- [ ] Thematic breaks
-- [ ] Link reference definitions
-- [ ] Indented code blocks
-- [ ] Fenced code blocks
-- [ ] HTML blocks
-- [ ] Tables
+- [ ] Thematic breaks (`---`)
+- [ ] Link reference definitions (`[label]:`)
+- [ ] Indented code blocks (`....`)
+- [ ] Fenced code blocks (` ```lang `)
+- [ ] HTML blocks (`<tag>`)
+- [ ] Tables (`|header|`)
 
 ### container blocks
-- [ ] Block quotes
-- [ ] Lists
+- [ ] Block quotes (`> `)
+- [ ] Lists (`- `)
 - [ ] List items
-- [ ] Task list items
+- [ ] Task list items (`- [ ] `)
 
 ### inlines
-- [ ] Raw HTML
-- [x] Code spans
-- [x] Links
-- [x] Images
-- [ ] Autolinks
-- [x] Emphasis and strong emphasis
-- [x] Strikethrough
-- [x] Hard line breaks
-- [x] Entity and numeric character references
-- [x] Backslash escapes
+- [ ] Raw HTML (`<tag>`)
+- [x] Code spans (`` `code` ``)
+- [x] Links (`[text](/url)`)
+- [x] Images (`![alt](/url)`)
+- [ ] Autolinks (`www.example.com`)
+- [x] Emphasis and strong emphasis (`*`)
+- [x] Strikethrough (`~`)
+- [x] Hard line breaks (`..\n`)
+- [x] Entity and numeric character references (`&amp;`)
+- [x] Backslash escapes (`\`)
