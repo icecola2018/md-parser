@@ -1,108 +1,112 @@
-var Section = require('../common').Section;
+var Worker = require('../common/worker');
+var LabelTool = require('../common/label-tool');
 
-function Link(altTextHandler, labelManager) {
-    this.alt = altTextHandler;
-    this.labelMgr = labelManager;
+function getMatched(squares) {
+    var matched = [];
+    var stack = [];
+    var lastMatched = null;
+    for (var i = 0; i < squares.length; i++) {
+        if (squares[i].type === ']') {
+            if (stack.length) {
+                lastMatched = stack.pop();
+                lastMatched.close = squares[i];
+                matched[matched.length] = lastMatched;
+            }
+        } else {
+            if (lastMatched) {
+                lastMatched.next = squares[i];
+                lastMatched = null;
+            }
+            if (stack.length) {
+                stack[stack.length - 1].nested = true;
+            }
+            stack[stack.length] = squares[i];
+        }
+    }
+    return matched.sort(function (a, b) {
+        return a.begin - b.begin;
+    });
 }
-Link.prototype.regexp = {
-    // ( <\1|\2>  "\4")
-    destination: /^\(\s*(?:((?:|\S*?[^\\\s])(?:\\\\)*)\)|(\S+)(?:\s+(["'])((?:|[\s\S]*?[^\\])(?:\\\\)*)\3)?\s*\))/,
-    angleDestination: /^\(\s*<((?:|\S*?[^\\\s])(?:\\\\)*)>()\s*(?:(["'])((?:|[\s\S]*?[^\\])(?:\\\\)*)\3\s*)?\)/
-};
-Link.prototype.detect = function (section, env, matched) {
-    var follow = env.src.substring(matched.close.end, section.end);
-    var cap = follow.match(this.regexp.angleDestination);
-    cap = cap || follow.match(this.regexp.destination);
-    if (cap) {
-        return {
-            type: matched.type === '[' ? 'link' : 'image',
-            url: this.labelMgr.url.handle(cap[1] || cap[2] || ''),
-            title: this.labelMgr.title.handle(cap[4] || ''),
-            end: matched.close.end + cap.index + cap[0].length
+
+// ( <\1|\2>  "\4")
+var destination = /^\(\s*(?:((?:|\S*?[^\\\s])(?:\\\\)*)\)|(\S+)(?:\s+(["'])((?:|[\s\S]*?[^\\])(?:\\\\)*)\3)?\s*\))/;
+var angleDestination = /^\(\s*<((?:|\S*?[^\\\s])(?:\\\\)*)>()\s*(?:(["'])((?:|[\s\S]*?[^\\])(?:\\\\)*)\3\s*)?\)/;
+function detect(sec, share, pair) {
+    var next = pair.next;
+    if (next && next.close && next.close.end <= sec.end && (!next.nested)
+        && /^\s?$/.test(share.srcOf(pair.close.end, next.begin))) {
+        var info = this.labelTool.dict(share.srcOf(next.end, next.close.begin));
+        if (info === false && !pair.nested) {
+            info = this.labelTool.dict(share.srcOf(pair.end, pair.close.begin));
         }
-    } else if (matched.next && matched.next.close && !matched.next.nest) {
-        if (/^\s?$/.test(env.src.substring(matched.close.end, matched.next.begin))) {
-            var label = env.src.substring(matched.next.end, matched.next.close.begin);
-            label = this.labelMgr.label.handle(label) || '';
-            if (label === '') {
-                label = env.src.substring(matched.end, matched.close.begin);
-                label = this.labelMgr.label.handle(label) || '';
-            }
-            if (label) {
-                var info;
-                if (info = this.labelMgr.info(label)) {
-                    return {
-                        type: matched.type === '[' ? 'link' : 'image',
-                        url: info.url,
-                        title: info.title,
-                        end: matched.next.close.end
-                    };
-                }
+        if (info) {
+            return {
+                type: pair.type === '[' ? 'link' : 'image',
+                url: info.url,
+                title: info.title,
+                end: next.close.end
+            };
+        }
+    } else {
+        var follow = share.srcOf(pair.close.end, sec.end);
+        var cap = follow.match(angleDestination) || follow.match(destination);
+        if (cap) {
+            return {
+                type: pair.type === '[' ? 'link' : 'image',
+                url: this.labelTool.handleUrl(cap[1] || cap[2] || ''),
+                title: this.labelTool.handleTitle(cap[4] || ''),
+                end: pair.close.end + cap.index + cap[0].length
             }
         }
     }
-};
-Link.prototype.work = function (list, env) {
-    var section = list[0];
-    if (section && section.type === 'raw') {
-        var square = env.within(section.begin, section.end, env.square);
-        var matched = [];
-        var stack = [];
-        var lastMatched = null;
-        for (var i = 0; i < square.length; i++) {
-            if (square[i].type === ']') {
-                if (stack.length) {
-                    lastMatched = stack.pop();
-                    lastMatched.close = square[i];
-                }
-            } else {
-                if (lastMatched) {
-                    lastMatched.next = square[i];
-                    lastMatched = null;
-                }
-                if (stack.length) {
-                    stack[stack.length - 1].nest = true;
-                }
-                stack.push(square[i]);
-            }
-        }
-        for (var i = 0; i < square.length; i++) {
-            if (square[i].close) {
-                matched.push(square[i]);
-            }
-        }
+}
 
-        for (var i = 0; i < matched.length; i++) {
-            if (matched[i].begin < section.begin) {
-                continue;
-            }
-            var result = this.detect(section, env, matched[i]);
-            if (result) {
-                var section2 = new Section(result.end, section.end);
-                section.end = matched[i].begin;
-                var link = new Section(section.end, section2.begin);
-                link.url = result.url;
-                link.title = result.title;
-                if (result.type === 'link') {
-                    link.type = 'link';
-                    link.list = [new Section(matched[i].end, matched[i].close.begin)];
-                    this.inside.work(link.list, env);
-                } else {
-                    link.type = 'image';
-                    link.alt = this.alt.handle(env.src.substring(matched[i].end, matched[i].close.begin)) || '';
-                }
-                if (section.length() <= 0) {
-                    list.pop();
-                }
-                list.push(link);
-                if (section2.length() > 0) {
-                    list.push(section2);
-                }
-                section = section2;
-            }
-        }
+function work(list, share, matchedSquares) {
+    if (list.length !== 1 || list[0].type !== 'raw') {
+        return;
     }
-    this.next.work(list, env);
-};
+    var sec = list[0];
+    if (!matchedSquares) {
+        matchedSquares = getMatched(share.delimiters('link', sec));
+    }
 
-module.exports = Link;
+    var begin = sec.begin;
+    for (var i = 0; i < matchedSquares.length; i++) {
+        var pair = matchedSquares[i];
+        if (pair.begin < begin) {
+            continue;
+        }
+        var result = detect.call(this, sec, share, pair);
+        if (!result) {
+            continue;
+        }
+
+        var link;
+        if (result.type === 'link') {
+            link = share.insertSection(list, pair.begin, result.end,
+                'link', pair.end, pair.close.begin);
+            this.content(link.list, share, matchedSquares.filter(function (m) {
+                return m.begin >= pair.end && m.end <= pair.close.begin
+                    && m.close.begin >= pair.end && m.close.end <= pair.close.begin;
+            }));
+        } else {
+            link = share.insertSection(list, pair.begin, result.end, 'image');
+            link.alt = this.handleImageAlt(share.srcOf(pair.end, pair.close.begin));
+        }
+        link.url = result.url;
+        link.title = result.title;
+        begin = result.end;
+    }
+}
+
+module.exports = function (labelTool, handleImageAlt) {
+    if (arguments.length < 2 || typeof handleImageAlt !== 'function') {
+        handleImageAlt = require('../common/text/image-alt');
+    }
+    if (arguments.length < 1 || !(labelTool instanceof LabelTool)) {
+        labelTool = new LabelTool();
+    }
+    return new Worker(work, 'content')
+        .set('handleImageAlt', handleImageAlt)
+        .set('labelTool', labelTool);
+};
